@@ -53,7 +53,7 @@ NSString *const DIYAVSettingSaveLibrary            = @"DIYAVSettingSaveLibrary";
 {
     // Options
     NSDictionary *defaultOptions;
-    defaultOptions          = @{ DIYAVSettingFlash              : @false,
+    defaultOptions          = @{ DIYAVSettingFlash              : [NSNumber numberWithInt:DIYAVFlashModeOff],
                                  DIYAVSettingOrientationForce   : @false,
                                  DIYAVSettingOrientationDefault : [NSNumber numberWithInt:AVCaptureVideoOrientationLandscapeRight],
                                  DIYAVSettingCameraPosition     : [NSNumber numberWithInt:AVCaptureDevicePositionBack],
@@ -70,7 +70,7 @@ NSString *const DIYAVSettingSaveLibrary            = @"DIYAVSettingSaveLibrary";
     .defaults(defaultOptions)
     .unwrap;
     
-    _flash                  = [[_options valueForKey:DIYAVSettingFlash] boolValue];
+    _flash                  = (DIYAVFlashMode)[[_options valueForKey:DIYAVSettingFlash] integerValue];
     _cameraPosition         = [[_options valueForKey:DIYAVSettingCameraPosition] integerValue];
     
     // AV setup
@@ -133,7 +133,6 @@ NSString *const DIYAVSettingSaveLibrary            = @"DIYAVSettingSaveLibrary";
 - (void)focusAtPoint:(CGPoint)point inFrame:(CGRect)frame
 {
     if (_videoInput.device.isFocusPointOfInterestSupported && [_videoInput.device isFocusModeSupported:AVCaptureFocusModeAutoFocus]) {
-        
         CGPoint focusPoint = [DIYAVUtilities convertToPointOfInterestFromViewCoordinates:point withFrame:frame withPreview:_preview withPorts:_videoInput.ports];
         NSError *error;
         if ([_videoInput.device lockForConfiguration:&error]) {
@@ -216,7 +215,7 @@ NSString *const DIYAVSettingSaveLibrary            = @"DIYAVSettingSaveLibrary";
 
 #pragma mark - Override
 
-- (void)setFlash:(BOOL)flash
+- (void)setFlash:(DIYAVFlashMode)flash
 {
     self->_flash = flash;
     if (_captureMode == DIYAVModePhoto) {
