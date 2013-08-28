@@ -65,58 +65,45 @@
 
 #pragma mark - Device setup
 
-+ (BOOL)getFlashStatusForCameraInPosition:(AVCaptureDevicePosition)position
++ (AVCaptureFlashMode)getFlashStatusForCameraInPosition:(AVCaptureDevicePosition)position
 {
-    BOOL flashEnabled = NO;
+    AVCaptureFlashMode flashResult = AVCaptureFlashModeOff;
     if ([[self cameraInPosition:position] hasFlash]) {
-        flashEnabled = ([self cameraInPosition:position].flashMode != AVCaptureFlashModeOff);
+      flashResult = [self cameraInPosition:position].flashMode;
     }
     
-    return flashEnabled;
+    return flashResult;
 }
 
-+ (BOOL)getTorchStatusForCameraInPosition:(AVCaptureDevicePosition)position
++ (AVCaptureFlashMode)getTorchStatusForCameraInPosition:(AVCaptureDevicePosition)position
 {
-    BOOL torchEnabled = NO;
+    AVCaptureFlashMode flashResult = AVCaptureFlashModeOff;
     if ([[self cameraInPosition:position] hasTorch]) {
-        torchEnabled = ([self cameraInPosition:position].torchMode != AVCaptureTorchModeOff);
+      flashResult = [self cameraInPosition:position].torchMode;
     }
     
-    return torchEnabled;
+    return flashResult;
 }
 
-+ (void)setTorch:(BOOL)torch forCameraInPosition:(AVCaptureDevicePosition)position
++ (void)setTorch:(AVCaptureFlashMode)torch forCameraInPosition:(AVCaptureDevicePosition)position
 {
     if ([[self cameraInPosition:position] hasTorch]) {
         if ([[self cameraInPosition:position] lockForConfiguration:nil]) {
-            if (torch)
-            {
-                if ([[self cameraInPosition:position] isTorchModeSupported:AVCaptureTorchModeOn]) {
-                    [[self cameraInPosition:position] setTorchMode:AVCaptureTorchModeOn];
-                }
-            } else {
-                if ([[self cameraInPosition:position] isTorchModeSupported:AVCaptureTorchModeOff]) {
-                    [[self cameraInPosition:position] setTorchMode:AVCaptureTorchModeOff];
-                }
+            if ([[self cameraInPosition:position] isTorchModeSupported:torch]) {
+                [[self cameraInPosition:position] setTorchMode:torch];
             }
             [[self cameraInPosition:position] unlockForConfiguration];
         }
     }
 }
 
-+ (void)setFlash:(BOOL)flash forCameraInPosition:(AVCaptureDevicePosition)position
++ (void)setFlash:(AVCaptureFlashMode)flash forCameraInPosition:(AVCaptureDevicePosition)position
 {    
     // Flash
     if ([[self cameraInPosition:position] hasFlash]) {
         if ([[self cameraInPosition:position] lockForConfiguration:nil]) {
-            if (flash) {
-                if ([[self cameraInPosition:position] isFlashModeSupported:AVCaptureFlashModeOn]) {
-                    [[self cameraInPosition:position] setFlashMode:AVCaptureFlashModeOn];
-                }
-            } else {
-                if ([[self cameraInPosition:position] isFlashModeSupported:AVCaptureFlashModeOff]) {
-                    [[self cameraInPosition:position] setFlashMode:AVCaptureFlashModeOff];
-                }
+            if ([[self cameraInPosition:position] isFlashModeSupported:flash]) {
+                [[self cameraInPosition:position] setFlashMode:flash];
             }
             [[self cameraInPosition:position] unlockForConfiguration];
         }
@@ -149,7 +136,7 @@
      */
     
     if ([preview.videoGravity isEqualToString:AVLayerVideoGravityResize]) {
-		// Scale, switch x and y, and reverse x
+        // Scale, switch x and y, and reverse x
         pointOfInterest = CGPointMake(viewCoordinates.y / frameSize.height, 1.f - (viewCoordinates.x / frameSize.width));
     } else {
         CGRect cleanAperture;
@@ -170,9 +157,9 @@
                         CGFloat x2 = frameSize.height * apertureRatio;
                         CGFloat x1 = frameSize.width;
                         CGFloat blackBar = (x1 - x2) / 2;
-						// If point is inside letterboxed area, do coordinate conversion; otherwise, don't change the default value returned (.5,.5)
+                        // If point is inside letterboxed area, do coordinate conversion; otherwise, don't change the default value returned (.5,.5)
                         if (point.x >= blackBar && point.x <= blackBar + x2) {
-							// Scale (accounting for the letterboxing on the left and right of the video preview), switch x and y, and reverse x
+                            // Scale (accounting for the letterboxing on the left and right of the video preview), switch x and y, and reverse x
                             xc = point.y / y2;
                             yc = 1.f - ((point.x - blackBar) / x2);
                         }
@@ -181,15 +168,15 @@
                         CGFloat y1 = frameSize.height;
                         CGFloat x2 = frameSize.width;
                         CGFloat blackBar = (y1 - y2) / 2;
-						// If point is inside letterboxed area, do coordinate conversion. Otherwise, don't change the default value returned (.5,.5)
+                        // If point is inside letterboxed area, do coordinate conversion. Otherwise, don't change the default value returned (.5,.5)
                         if (point.y >= blackBar && point.y <= blackBar + y2) {
-							// Scale (accounting for the letterboxing on the top and bottom of the video preview), switch x and y, and reverse x
+                            // Scale (accounting for the letterboxing on the top and bottom of the video preview), switch x and y, and reverse x
                             xc = ((point.y - blackBar) / y2);
                             yc = 1.f - (point.x / x2);
                         }
                     }
                 } else if ([preview.videoGravity isEqualToString:AVLayerVideoGravityResizeAspectFill]) {
-					// Scale, switch x and y, and reverse x
+                    // Scale, switch x and y, and reverse x
                     if (viewRatio > apertureRatio) {
                         CGFloat y2 = apertureSize.width * (frameSize.width / apertureSize.height);
                         xc = (point.y + ((y2 - frameSize.height) / 2.f)) / y2; // Account for cropped height
@@ -208,7 +195,18 @@
     }
     
     CGPoint correctedPoint = CGPointMake(1.0f - pointOfInterest.y, pointOfInterest.x);
-    return correctedPoint;
+  
+  //
+  CGPoint resultPoint = correctedPoint;
+  UIInterfaceOrientation deviceOrientation = [[UIApplication sharedApplication] statusBarOrientation];
+  if (deviceOrientation == UIInterfaceOrientationPortrait)
+    resultPoint = CGPointMake(correctedPoint.y, 1.f - correctedPoint.x);
+  else if (deviceOrientation == UIInterfaceOrientationLandscapeRight)
+    resultPoint = CGPointMake(1.f - correctedPoint.x, 1.f - correctedPoint.y);
+  else if (deviceOrientation == UIInterfaceOrientationPortraitUpsideDown)
+    resultPoint = CGPointMake(1.f - correctedPoint.y, correctedPoint.x);
+  
+    return resultPoint;
 }
 
 + (AVCaptureVideoOrientation)getAVCaptureOrientationFromDeviceOrientation
